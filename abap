@@ -22,15 +22,7 @@ TYPES: BEGIN OF gty_mara_mcha,
          ernam TYPE mcha-ernam,
          laeda TYPE mcha-laeda,
          aenam TYPE mcha-aenam,
-         bwtar TYPE mcha-bwtar,
-         brgew TYPE mcha-brgew,
-         ntgew TYPE mcha-ntgew,
-         gewei TYPE mcha-gewei,
-         volum TYPE mcha-volum,
-         voleh TYPE mcha-voleh,
          lifnr TYPE mcha-lifnr,
-         lwedt TYPE mcha-lwedt,
-         herkl TYPE mcha-herkl,
        END OF gty_mara_mcha.
 
 TYPES: BEGIN OF gty_makt,
@@ -53,17 +45,9 @@ TYPES: BEGIN OF gty_final,
          laeda TYPE mcha-laeda,
          aenam TYPE mcha-aenam,
          mtart TYPE mara-mtart,
-         bwtar TYPE mcha-bwtar,
          matkl TYPE mara-matkl,
          mbrsh TYPE mara-mbrsh,
-         brgew TYPE mcha-brgew,
-         ntgew TYPE mcha-ntgew,
-         gewei TYPE mcha-gewei,
-         volum TYPE mcha-volum,
-         voleh TYPE mcha-voleh,
          lifnr TYPE mcha-lifnr,
-         lwedt TYPE mcha-lwedt,
-         herkl TYPE mcha-herkl,
        END OF gty_final.
 
 TYPES: gty_t_final TYPE STANDARD TABLE OF gty_final WITH DEFAULT KEY.
@@ -191,7 +175,7 @@ CLASS lcl_model IMPLEMENTATION.
 
   METHOD retrieve_data.
 
-    " Step 5a - Create internal table type RSELOPTION for plant
+    " Step 5a - RSELOPTION for plant
     DATA lt_werks TYPE rseloption.
     IF iv_werks IS NOT INITIAL.
       APPEND VALUE #( sign = 'I' option = 'EQ' low = iv_werks ) TO lt_werks.
@@ -200,9 +184,7 @@ CLASS lcl_model IMPLEMENTATION.
     " Step 5b - JOIN MARA and MCHA on MATNR
     SELECT mara~matnr mara~mtart mara~matkl mara~mbrsh
            mcha~werks mcha~charg mcha~ersda mcha~ernam
-           mcha~laeda mcha~aenam mcha~bwtar mcha~brgew
-           mcha~ntgew mcha~gewei mcha~volum mcha~voleh
-           mcha~lifnr mcha~lwedt mcha~herkl
+           mcha~laeda mcha~aenam mcha~lifnr
       FROM mara
       INNER JOIN mcha ON mara~matnr = mcha~matnr
       INTO TABLE gt_mara_mcha
@@ -220,7 +202,7 @@ CLASS lcl_model IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    " Step 5c - Check if entries exist before proceeding
+    " Step 5c - Check entries exist
     CHECK gt_mara_mcha IS NOT INITIAL.
 
     " Step 5d - FOR ALL ENTRIES into MAKT
@@ -274,22 +256,14 @@ CLASS lcl_model IMPLEMENTATION.
       ls_final-laeda = ls_mara_mcha-laeda.
       ls_final-aenam = ls_mara_mcha-aenam.
       ls_final-mtart = ls_mara_mcha-mtart.
-      ls_final-bwtar = ls_mara_mcha-bwtar.
       ls_final-matkl = ls_mara_mcha-matkl.
       ls_final-mbrsh = ls_mara_mcha-mbrsh.
-      ls_final-brgew = ls_mara_mcha-brgew.
-      ls_final-ntgew = ls_mara_mcha-ntgew.
-      ls_final-gewei = ls_mara_mcha-gewei.
-      ls_final-volum = ls_mara_mcha-volum.
-      ls_final-voleh = ls_mara_mcha-voleh.
       ls_final-lifnr = ls_mara_mcha-lifnr.
-      ls_final-lwedt = ls_mara_mcha-lwedt.
-      ls_final-herkl = ls_mara_mcha-herkl.
 
       APPEND ls_final TO gt_final.
     ENDLOOP.
 
-    " Step 5g - Export final internal table
+    " Step 5g - Export
     et_final = gt_final.
 
   ENDMETHOD.
@@ -302,7 +276,6 @@ ENDCLASS.
 CLASS lcl_view IMPLEMENTATION.
 
   METHOD display_write.
-    " Step 7c - Write column headers first
     DATA(lv_exec_date) = |{ sy-datum+4(2) }/{ sy-datum+6(2) }/{ sy-datum(4) }|.
     DATA(lv_exec_time) = |{ sy-uzeit(2) }:{ sy-uzeit+2(2) }:{ sy-uzeit+4(2) }|.
 
@@ -312,21 +285,17 @@ CLASS lcl_view IMPLEMENTATION.
     WRITE: / |Executed on: { lv_exec_date } - { lv_exec_time }|.
     SKIP.
 
+    " 7c - Headers first
     WRITE: / TEXT-c01, 55 TEXT-c02, 65 TEXT-c03, 95 TEXT-c04,
              110 TEXT-c05, 125 TEXT-c06, 140 TEXT-c07, 155 TEXT-c08,
-             170 TEXT-c09, 185 TEXT-c10, 200 TEXT-c11, 215 TEXT-c12,
-             230 TEXT-c13, 245 TEXT-c14, 260 TEXT-c15, 275 TEXT-c16,
-             290 TEXT-c17, 305 TEXT-c18, 320 TEXT-c19, 335 TEXT-c20.
+             170 TEXT-c09, 185 TEXT-c10, 200 TEXT-c11, 215 TEXT-c12.
     ULINE.
 
-    " Write data rows
     LOOP AT it_final INTO DATA(ls_final).
 
       DATA: lv_ersda TYPE string,
-            lv_laeda TYPE string,
-            lv_lwedt TYPE string.
+            lv_laeda TYPE string.
 
-      " Format dates to MM/DD/YYYY
       IF ls_final-ersda IS NOT INITIAL.
         lv_ersda = |{ ls_final-ersda+4(2) }/{ ls_final-ersda+6(2) }/{ ls_final-ersda(4) }|.
       ELSE.
@@ -339,19 +308,10 @@ CLASS lcl_view IMPLEMENTATION.
         CLEAR lv_laeda.
       ENDIF.
 
-      IF ls_final-lwedt IS NOT INITIAL.
-        lv_lwedt = |{ ls_final-lwedt+4(2) }/{ ls_final-lwedt+6(2) }/{ ls_final-lwedt(4) }|.
-      ELSE.
-        CLEAR lv_lwedt.
-      ENDIF.
-
       WRITE: / ls_final-matnr, 55 ls_final-werks, 65 ls_final-name1,
                95 ls_final-charg, 110 lv_ersda, 125 ls_final-ernam,
                140 lv_laeda, 155 ls_final-aenam, 170 ls_final-mtart,
-               185 ls_final-bwtar, 200 ls_final-matkl, 215 ls_final-mbrsh,
-               230 ls_final-brgew, 245 ls_final-ntgew, 260 ls_final-gewei,
-               275 ls_final-volum, 290 ls_final-voleh, 305 ls_final-lifnr,
-               320 lv_lwedt, 335 ls_final-herkl.
+               185 ls_final-matkl, 200 ls_final-mbrsh, 215 ls_final-lifnr.
     ENDLOOP.
   ENDMETHOD.
 
@@ -373,11 +333,10 @@ CLASS lcl_view IMPLEMENTATION.
         " 9g - Zebra stripes
         lo_display->set_striped_pattern( abap_true ).
 
-        " 9d - Enable toolbar functions
+        " 9d - Toolbar functions
         DATA(lo_functions) = lo_alv->get_functions( ).
         lo_functions->set_all( abap_true ).
 
-        " Get columns
         DATA(lo_columns) = lo_alv->get_columns( ).
 
         " 9f - Optimize column width
@@ -391,9 +350,7 @@ CLASS lcl_view IMPLEMENTATION.
         lo_column->set_long_text( TEXT-c01 ).
         lo_column->set_medium_text( TEXT-c01 ).
         lo_column->set_short_text( TEXT-c01 ).
-        " 9e - Green color
         lo_column->set_color( VALUE lvc_s_colo( col = 5 ) ).
-        " 9c - Hotspot
         IF iv_hotspot = abap_true.
           lo_column->set_cell_type( if_salv_c_cell_type=>hotspot ).
         ENDIF.
@@ -446,71 +403,23 @@ CLASS lcl_view IMPLEMENTATION.
         lo_column->set_medium_text( TEXT-c09 ).
         lo_column->set_short_text( TEXT-c09 ).
 
-        " Col 10 - Valuation Type
-        lo_column ?= lo_columns->get_column( 'BWTAR' ).
+        " Col 10 - Material Group
+        lo_column ?= lo_columns->get_column( 'MATKL' ).
         lo_column->set_long_text( TEXT-c10 ).
         lo_column->set_medium_text( TEXT-c10 ).
         lo_column->set_short_text( TEXT-c10 ).
 
-        " Col 11 - Material Group
-        lo_column ?= lo_columns->get_column( 'MATKL' ).
+        " Col 11 - Industry Sector
+        lo_column ?= lo_columns->get_column( 'MBRSH' ).
         lo_column->set_long_text( TEXT-c11 ).
         lo_column->set_medium_text( TEXT-c11 ).
         lo_column->set_short_text( TEXT-c11 ).
 
-        " Col 12 - Industry Sector
-        lo_column ?= lo_columns->get_column( 'MBRSH' ).
+        " Col 12 - Vendor
+        lo_column ?= lo_columns->get_column( 'LIFNR' ).
         lo_column->set_long_text( TEXT-c12 ).
         lo_column->set_medium_text( TEXT-c12 ).
         lo_column->set_short_text( TEXT-c12 ).
-
-        " Col 13 - Gross Weight
-        lo_column ?= lo_columns->get_column( 'BRGEW' ).
-        lo_column->set_long_text( TEXT-c13 ).
-        lo_column->set_medium_text( TEXT-c13 ).
-        lo_column->set_short_text( TEXT-c13 ).
-
-        " Col 14 - Net Weight
-        lo_column ?= lo_columns->get_column( 'NTGEW' ).
-        lo_column->set_long_text( TEXT-c14 ).
-        lo_column->set_medium_text( TEXT-c14 ).
-        lo_column->set_short_text( TEXT-c14 ).
-
-        " Col 15 - Weight Unit
-        lo_column ?= lo_columns->get_column( 'GEWEI' ).
-        lo_column->set_long_text( TEXT-c15 ).
-        lo_column->set_medium_text( TEXT-c15 ).
-        lo_column->set_short_text( TEXT-c15 ).
-
-        " Col 16 - Volume
-        lo_column ?= lo_columns->get_column( 'VOLUM' ).
-        lo_column->set_long_text( TEXT-c16 ).
-        lo_column->set_medium_text( TEXT-c16 ).
-        lo_column->set_short_text( TEXT-c16 ).
-
-        " Col 17 - Volume Unit
-        lo_column ?= lo_columns->get_column( 'VOLEH' ).
-        lo_column->set_long_text( TEXT-c17 ).
-        lo_column->set_medium_text( TEXT-c17 ).
-        lo_column->set_short_text( TEXT-c17 ).
-
-        " Col 18 - Vendor
-        lo_column ?= lo_columns->get_column( 'LIFNR' ).
-        lo_column->set_long_text( TEXT-c18 ).
-        lo_column->set_medium_text( TEXT-c18 ).
-        lo_column->set_short_text( TEXT-c18 ).
-
-        " Col 19 - Last Goods Receipt
-        lo_column ?= lo_columns->get_column( 'LWEDT' ).
-        lo_column->set_long_text( TEXT-c19 ).
-        lo_column->set_medium_text( TEXT-c19 ).
-        lo_column->set_short_text( TEXT-c19 ).
-
-        " Col 20 - Country of Origin
-        lo_column ?= lo_columns->get_column( 'HERKL' ).
-        lo_column->set_long_text( TEXT-c20 ).
-        lo_column->set_medium_text( TEXT-c20 ).
-        lo_column->set_short_text( TEXT-c20 ).
 
         " 9h - Sorting
         DATA(lo_sorts) = lo_alv->get_sorts( ).
@@ -528,12 +437,11 @@ CLASS lcl_view IMPLEMENTATION.
         lo_header->create_label( row = 3 column = 1 )->set_text( |Executed on: { lv_date } - { lv_time }| ).
         lo_alv->set_top_of_list( lo_header ).
 
-        " 9c - Register hotspot event handler
+        " 9c - Hotspot event handler
         IF iv_hotspot = abap_true.
           SET HANDLER lcl_event_handler=>on_link_click FOR lo_alv->get_event( ).
         ENDIF.
 
-        " Display ALV
         lo_alv->display( ).
 
       CATCH cx_salv_msg INTO DATA(lx_msg).
