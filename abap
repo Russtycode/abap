@@ -8,8 +8,10 @@ TABLES: mara, mcha.
 
 ************************************************************************
 * NOTE: Doc Step 5b says get BRGEW, NTGEW, GEWEI, VOLUM, VOLEH from
-* MCHA, but in this system they exist in MARA. We retrieve them from
-* MARA instead. All other fields match the doc's specified tables.
+* MCHA, but in this system they exist in MARA. All other fields match.
+* Corrected source tables:
+*   MARA: MATNR, MTART, MATKL, MBRSH, BRGEW, NTGEW, GEWEI, VOLUM, VOLEH
+*   MCHA: WERKS, CHARG, ERSDA, ERNAM, LAEDA, AENAM, BWTAR, LIFNR, LWEDT, HERKL
 ************************************************************************
 
 ************************************************************************
@@ -18,9 +20,7 @@ TABLES: mara, mcha.
 TYPES: gty_r_matnr TYPE RANGE OF matnr,
        gty_r_ersda TYPE RANGE OF ersda.
 
-" Step 5b result structure (JOIN of MARA + MCHA)
-" From MARA: MATNR, MTART, MATKL, MBRSH, BRGEW, NTGEW, GEWEI, VOLUM, VOLEH
-" From MCHA: WERKS, CHARG, ERSDA, ERNAM, LAEDA, AENAM, BWTAR, LIFNR, LWEDT, HERKL
+" Step 5b: JOIN result structure
 TYPES: BEGIN OF gty_mara_mcha,
          matnr TYPE mara-matnr,
          mtart TYPE mara-mtart,
@@ -43,19 +43,19 @@ TYPES: BEGIN OF gty_mara_mcha,
          herkl TYPE mcha-herkl,
        END OF gty_mara_mcha.
 
-" Step 5d result (MAKT)
+" Step 5d: MAKT result
 TYPES: BEGIN OF gty_makt,
          matnr TYPE makt-matnr,
          maktx TYPE makt-maktx,
        END OF gty_makt.
 
-" Step 5e result (T001W)
+" Step 5e: T001W result
 TYPES: BEGIN OF gty_t001w,
          werks TYPE t001w-werks,
          name1 TYPE t001w-name1,
        END OF gty_t001w.
 
-" Step 5f final output - all 20 columns per Report Fields table
+" Step 5f: Final output - all 20 columns
 TYPES: BEGIN OF gty_final,
          matnr TYPE string,          " Col 1:  Material - Description
          werks TYPE mcha-werks,      " Col 2:  Plant
@@ -128,7 +128,7 @@ CLASS lcl_event_handler IMPLEMENTATION.
 ENDCLASS.
 
 ************************************************************************
-* Step 3 + 5: Model Class - Definition
+* Step 3 + 5: Model Class
 ************************************************************************
 CLASS lcl_model DEFINITION.
   PUBLIC SECTION.
@@ -149,7 +149,6 @@ CLASS lcl_model DEFINITION.
                   iv_werks TYPE werks_d
         EXPORTING et_final TYPE gty_t_final.
 
-    " Hint: Internal tables in class definition
     DATA: gt_mara_mcha TYPE STANDARD TABLE OF gty_mara_mcha,
           gt_makt      TYPE STANDARD TABLE OF gty_makt,
           gt_t001w     TYPE STANDARD TABLE OF gty_t001w,
@@ -157,7 +156,7 @@ CLASS lcl_model DEFINITION.
 ENDCLASS.
 
 ************************************************************************
-* Step 7: View Class - Definition
+* Step 7: View Class
 ************************************************************************
 CLASS lcl_view DEFINITION.
   PUBLIC SECTION.
@@ -213,8 +212,8 @@ CLASS lcl_model IMPLEMENTATION.
   " Step 5: Retrieve and process data
   METHOD retrieve_data.
 
-    " Step 5a: RSELOPTION for plant with ABAP 740 VALUE syntax
-    DATA lt_werks TYPE rseloption.
+    " Step 5a: RANGE OF for plant (ABAP 740 VALUE syntax)
+    DATA lt_werks TYPE RANGE OF werks_d.
     IF iv_werks IS NOT INITIAL.
       APPEND VALUE #( sign = 'I' option = 'EQ' low = iv_werks ) TO lt_werks.
     ENDIF.
@@ -232,20 +231,18 @@ CLASS lcl_model IMPLEMENTATION.
         AND mcha~ersda IN @it_ersda
         AND mcha~werks IN @lt_werks.
 
-    " Sort by primary keys
     SORT gt_mara_mcha BY matnr werks charg.
 
-    " No data found
     IF gt_mara_mcha IS INITIAL.
       MESSAGE TEXT-e04 TYPE 'S' DISPLAY LIKE 'E'.
       LEAVE LIST-PROCESSING.
       RETURN.
     ENDIF.
 
-    " Step 5c: Check entries exist
+    " Step 5c: Check entries
     CHECK gt_mara_mcha IS NOT INITIAL.
 
-    " Step 5d: FOR ALL ENTRIES into MAKT, SPRAS = SY-LANGU
+    " Step 5d: FOR ALL ENTRIES into MAKT
     SELECT matnr, maktx
       FROM makt
       INTO TABLE @gt_makt
@@ -320,8 +317,7 @@ ENDCLASS.
 ************************************************************************
 CLASS lcl_view IMPLEMENTATION.
 
-  " Step 7: WRITE display
-  " 7c: Write column headers first
+  " Step 7: WRITE display (7c: headers first)
   METHOD display_write.
     DATA(lv_exec_date) = |{ sy-datum+4(2) }/{ sy-datum+6(2) }/{ sy-datum(4) }|.
     DATA(lv_exec_time) = |{ sy-uzeit(2) }:{ sy-uzeit+2(2) }:{ sy-uzeit+4(2) }|.
@@ -332,7 +328,6 @@ CLASS lcl_view IMPLEMENTATION.
     WRITE: / |Executed on: { lv_exec_date } - { lv_exec_time }|.
     SKIP.
 
-    " 7a/7b: Column headers in sequence, 9i: text elements
     WRITE: / TEXT-c01, 55 TEXT-c02, 65 TEXT-c03, 95 TEXT-c04,
              110 TEXT-c05, 125 TEXT-c06, 140 TEXT-c07, 155 TEXT-c08,
              170 TEXT-c09, 185 TEXT-c10, 200 TEXT-c11, 215 TEXT-c12,
@@ -346,7 +341,7 @@ CLASS lcl_view IMPLEMENTATION.
             lv_laeda TYPE string,
             lv_lwedt TYPE string.
 
-      " MM/DD/YYYY format for date columns (5, 7, 19)
+      " MM/DD/YYYY for date columns 5, 7, 19
       IF ls_final-ersda IS NOT INITIAL.
         lv_ersda = |{ ls_final-ersda+4(2) }/{ ls_final-ersda+6(2) }/{ ls_final-ersda(4) }|.
       ELSE.
@@ -375,7 +370,7 @@ CLASS lcl_view IMPLEMENTATION.
     ENDLOOP.
   ENDMETHOD.
 
-  " Step 7d + Step 9: ALV display using SALV
+  " Step 7d + Step 9: ALV display
   METHOD display_alv.
 
     DATA lo_alv TYPE REF TO cl_salv_table.
@@ -392,7 +387,7 @@ CLASS lcl_view IMPLEMENTATION.
         " 9g: Zebra stripes
         lo_display->set_striped_pattern( abap_true ).
 
-        " 9d: Enable toolbar functions
+        " 9d: Toolbar functions
         DATA(lo_functions) = lo_alv->get_functions( ).
         lo_functions->set_all( abap_true ).
 
@@ -404,7 +399,7 @@ CLASS lcl_view IMPLEMENTATION.
         " 9i: Column descriptions in text elements
         DATA lo_column TYPE REF TO cl_salv_column_table.
 
-        " Col 1: Material - 9e: GREEN, 9c: Hotspot
+        " Col 1: Material (9e: GREEN, 9c: Hotspot)
         lo_column ?= lo_columns->get_column( 'MATNR' ).
         lo_column->set_long_text( TEXT-c01 ).
         lo_column->set_medium_text( TEXT-c01 ).
@@ -535,7 +530,7 @@ CLASS lcl_view IMPLEMENTATION.
         lo_sorts->add_sort( columnname = 'CHARG' position = 3 sequence = if_salv_c_sort=>sort_up ).
         lo_sorts->add_sort( columnname = 'ERSDA' position = 4 sequence = if_salv_c_sort=>sort_down ).
 
-        " 9b: Subheading (MM/DD/YYYY - HH:MM:SS)
+        " 9b: Subheading
         DATA(lo_header) = NEW cl_salv_form_layout_grid( ).
         DATA(lv_date) = |{ sy-datum+4(2) }/{ sy-datum+6(2) }/{ sy-datum(4) }|.
         DATA(lv_time) = |{ sy-uzeit(2) }:{ sy-uzeit+2(2) }:{ sy-uzeit+4(2) }|.
