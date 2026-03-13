@@ -182,12 +182,12 @@ CLASS lcl_model IMPLEMENTATION.
     ENDIF.
 
     " Step 5b - JOIN MARA and MCHA on MATNR
-    SELECT mara~matnr mara~mtart mara~matkl mara~mbrsh
-           mcha~werks mcha~charg mcha~ersda mcha~ernam
-           mcha~laeda mcha~aenam mcha~lifnr
+    SELECT mara~matnr, mara~mtart, mara~matkl, mara~mbrsh,
+           mcha~werks, mcha~charg, mcha~ersda, mcha~ernam,
+           mcha~laeda, mcha~aenam, mcha~lifnr
       FROM mara
       INNER JOIN mcha ON mara~matnr = mcha~matnr
-      INTO TABLE gt_mara_mcha
+      INTO TABLE @gt_mara_mcha
       WHERE mara~matnr IN @it_matnr
         AND mcha~ersda IN @it_ersda
         AND mcha~werks IN @lt_werks.
@@ -506,6 +506,7 @@ START-OF-SELECTION.
     lo_view->display_write( it_final = gt_final ).
   ELSE.
     lo_view->display_alv(
+      EXPORTING
       iv_hotspot = COND #( WHEN cb_hotsp = abap_true THEN abap_true ELSE abap_false )
       CHANGING ct_final = gt_final ).
   ENDIF.
