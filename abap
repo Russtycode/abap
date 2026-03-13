@@ -1,26 +1,13 @@
 REPORT yn3151367_mmr_matrep.
 
-" Step 1: Program YN3151367_MMR_MATREP
-" Title: Material Master Report - Batch View
-" Type: Executable Program | Package: $tmp
-
 TABLES: mara, mcha.
-
-************************************************************************
-* NOTE: Doc Step 5b says get BRGEW, NTGEW, GEWEI, VOLUM, VOLEH from
-* MCHA, but in this system they exist in MARA. All other fields match.
-* Corrected source tables:
-*   MARA: MATNR, MTART, MATKL, MBRSH, BRGEW, NTGEW, GEWEI, VOLUM, VOLEH
-*   MCHA: WERKS, CHARG, ERSDA, ERNAM, LAEDA, AENAM, BWTAR, LIFNR, LWEDT, HERKL
-************************************************************************
 
 ************************************************************************
 * TYPES
 ************************************************************************
-TYPES: gty_r_matnr TYPE RANGE OF matnr,
-       gty_r_ersda TYPE RANGE OF ersda.
+TYPES: gty_r_matnr TYPE RANGE OF mara-matnr,
+       gty_r_ersda TYPE RANGE OF mcha-ersda.
 
-" Step 5b: JOIN result structure
 TYPES: BEGIN OF gty_mara_mcha,
          matnr TYPE mara-matnr,
          mtart TYPE mara-mtart,
@@ -43,40 +30,37 @@ TYPES: BEGIN OF gty_mara_mcha,
          herkl TYPE mcha-herkl,
        END OF gty_mara_mcha.
 
-" Step 5d: MAKT result
 TYPES: BEGIN OF gty_makt,
          matnr TYPE makt-matnr,
          maktx TYPE makt-maktx,
        END OF gty_makt.
 
-" Step 5e: T001W result
 TYPES: BEGIN OF gty_t001w,
          werks TYPE t001w-werks,
          name1 TYPE t001w-name1,
        END OF gty_t001w.
 
-" Step 5f: Final output - all 20 columns
 TYPES: BEGIN OF gty_final,
-         matnr TYPE string,          " Col 1:  Material - Description
-         werks TYPE mcha-werks,      " Col 2:  Plant
-         name1 TYPE t001w-name1,     " Col 3:  Plant Name
-         charg TYPE mcha-charg,      " Col 4:  Batch
-         ersda TYPE mcha-ersda,      " Col 5:  Created On
-         ernam TYPE mcha-ernam,      " Col 6:  Created By
-         laeda TYPE mcha-laeda,      " Col 7:  Changed On
-         aenam TYPE mcha-aenam,      " Col 8:  Changed By
-         mtart TYPE mara-mtart,      " Col 9:  Material Type
-         bwtar TYPE mcha-bwtar,      " Col 10: Valuation Type
-         matkl TYPE mara-matkl,      " Col 11: Material Group
-         mbrsh TYPE mara-mbrsh,      " Col 12: Industry Sector
-         brgew TYPE mara-brgew,      " Col 13: Gross Weight
-         ntgew TYPE mara-ntgew,      " Col 14: Net Weight
-         gewei TYPE mara-gewei,      " Col 15: Weight Unit
-         volum TYPE mara-volum,      " Col 16: Volume
-         voleh TYPE mara-voleh,      " Col 17: Volume Unit
-         lifnr TYPE mcha-lifnr,     " Col 18: Vendor
-         lwedt TYPE mcha-lwedt,      " Col 19: Last Goods Receipt
-         herkl TYPE mcha-herkl,      " Col 20: Country of Origin
+         matnr TYPE string,
+         werks TYPE mcha-werks,
+         name1 TYPE t001w-name1,
+         charg TYPE mcha-charg,
+         ersda TYPE mcha-ersda,
+         ernam TYPE mcha-ernam,
+         laeda TYPE mcha-laeda,
+         aenam TYPE mcha-aenam,
+         mtart TYPE mara-mtart,
+         bwtar TYPE mcha-bwtar,
+         matkl TYPE mara-matkl,
+         mbrsh TYPE mara-mbrsh,
+         brgew TYPE mara-brgew,
+         ntgew TYPE mara-ntgew,
+         gewei TYPE mara-gewei,
+         volum TYPE mara-volum,
+         voleh TYPE mara-voleh,
+         lifnr TYPE mcha-lifnr,
+         lwedt TYPE mcha-lwedt,
+         herkl TYPE mcha-herkl,
        END OF gty_final.
 
 TYPES: gty_t_final TYPE STANDARD TABLE OF gty_final WITH DEFAULT KEY.
@@ -132,7 +116,6 @@ ENDCLASS.
 ************************************************************************
 CLASS lcl_model DEFINITION.
   PUBLIC SECTION.
-    " Step 3: Static validation methods
     CLASS-METHODS:
       validate_material
         IMPORTING it_matnr TYPE gty_r_matnr,
@@ -141,7 +124,6 @@ CLASS lcl_model DEFINITION.
       validate_plant
         IMPORTING iv_werks TYPE werks_d.
 
-    " Step 5: Instance method
     METHODS:
       retrieve_data
         IMPORTING it_matnr TYPE gty_r_matnr
@@ -173,7 +155,6 @@ ENDCLASS.
 ************************************************************************
 CLASS lcl_model IMPLEMENTATION.
 
-  " Step 3a: Validate Material
   METHOD validate_material.
     IF it_matnr IS NOT INITIAL.
       SELECT SINGLE matnr
@@ -186,7 +167,6 @@ CLASS lcl_model IMPLEMENTATION.
     ENDIF.
   ENDMETHOD.
 
-  " Step 3b: Validate Created On
   METHOD validate_created_on.
     IF it_ersda IS NOT INITIAL.
       DATA(lv_date) = it_ersda[ 1 ]-low.
@@ -196,7 +176,6 @@ CLASS lcl_model IMPLEMENTATION.
     ENDIF.
   ENDMETHOD.
 
-  " Step 3c: Validate Plant
   METHOD validate_plant.
     IF iv_werks IS NOT INITIAL.
       SELECT SINGLE werks
@@ -209,16 +188,15 @@ CLASS lcl_model IMPLEMENTATION.
     ENDIF.
   ENDMETHOD.
 
-  " Step 5: Retrieve and process data
   METHOD retrieve_data.
 
-    " Step 5a: RANGE OF for plant (ABAP 740 VALUE syntax)
-    DATA lt_werks TYPE RANGE OF werks_d.
+    " Step 5a
+    DATA lt_werks TYPE rseloption.
     IF iv_werks IS NOT INITIAL.
       APPEND VALUE #( sign = 'I' option = 'EQ' low = iv_werks ) TO lt_werks.
     ENDIF.
 
-    " Step 5b: JOIN MARA and MCHA on MATNR
+    " Step 5b
     SELECT mara~matnr, mara~mtart, mara~matkl, mara~mbrsh,
            mara~brgew, mara~ntgew, mara~gewei, mara~volum, mara~voleh,
            mcha~werks, mcha~charg, mcha~ersda, mcha~ernam,
@@ -239,10 +217,9 @@ CLASS lcl_model IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    " Step 5c: Check entries
     CHECK gt_mara_mcha IS NOT INITIAL.
 
-    " Step 5d: FOR ALL ENTRIES into MAKT
+    " Step 5d
     SELECT matnr, maktx
       FROM makt
       INTO TABLE @gt_makt
@@ -252,7 +229,7 @@ CLASS lcl_model IMPLEMENTATION.
 
     SORT gt_makt BY matnr.
 
-    " Step 5e: FOR ALL ENTRIES into T001W
+    " Step 5e
     SELECT werks, name1
       FROM t001w
       INTO TABLE @gt_t001w
@@ -261,7 +238,7 @@ CLASS lcl_model IMPLEMENTATION.
 
     SORT gt_t001w BY werks.
 
-    " Step 5f: LOOP and READ, concatenate Material - Description
+    " Step 5f
     DATA ls_final TYPE gty_final.
 
     LOOP AT gt_mara_mcha INTO DATA(ls_mara_mcha).
@@ -305,7 +282,7 @@ CLASS lcl_model IMPLEMENTATION.
       APPEND ls_final TO gt_final.
     ENDLOOP.
 
-    " Step 5g: Export
+    " Step 5g
     et_final = gt_final.
 
   ENDMETHOD.
@@ -317,7 +294,6 @@ ENDCLASS.
 ************************************************************************
 CLASS lcl_view IMPLEMENTATION.
 
-  " Step 7: WRITE display (7c: headers first)
   METHOD display_write.
     DATA(lv_exec_date) = |{ sy-datum+4(2) }/{ sy-datum+6(2) }/{ sy-datum(4) }|.
     DATA(lv_exec_time) = |{ sy-uzeit(2) }:{ sy-uzeit+2(2) }:{ sy-uzeit+4(2) }|.
@@ -341,7 +317,6 @@ CLASS lcl_view IMPLEMENTATION.
             lv_laeda TYPE string,
             lv_lwedt TYPE string.
 
-      " MM/DD/YYYY for date columns 5, 7, 19
       IF ls_final-ersda IS NOT INITIAL.
         lv_ersda = |{ ls_final-ersda+4(2) }/{ ls_final-ersda+6(2) }/{ ls_final-ersda(4) }|.
       ELSE.
@@ -370,7 +345,6 @@ CLASS lcl_view IMPLEMENTATION.
     ENDLOOP.
   ENDMETHOD.
 
-  " Step 7d + Step 9: ALV display
   METHOD display_alv.
 
     DATA lo_alv TYPE REF TO cl_salv_table.
@@ -382,7 +356,7 @@ CLASS lcl_view IMPLEMENTATION.
 
         " 9a: Main heading
         DATA(lo_display) = lo_alv->get_display_settings( ).
-        lo_display->set_list_header( TEXT-h01 ).
+        lo_display->set_list_header( CONV scrtext_l( TEXT-h01 ) ).
 
         " 9g: Zebra stripes
         lo_display->set_striped_pattern( abap_true ).
@@ -401,9 +375,9 @@ CLASS lcl_view IMPLEMENTATION.
 
         " Col 1: Material (9e: GREEN, 9c: Hotspot)
         lo_column ?= lo_columns->get_column( 'MATNR' ).
-        lo_column->set_long_text( TEXT-c01 ).
-        lo_column->set_medium_text( TEXT-c01 ).
-        lo_column->set_short_text( TEXT-c01 ).
+        lo_column->set_long_text( CONV scrtext_l( TEXT-c01 ) ).
+        lo_column->set_medium_text( CONV scrtext_m( TEXT-c01 ) ).
+        lo_column->set_short_text( CONV scrtext_s( TEXT-c01 ) ).
         lo_column->set_color( VALUE lvc_s_colo( col = 5 ) ).
         IF iv_hotspot = abap_true.
           lo_column->set_cell_type( if_salv_c_cell_type=>hotspot ).
@@ -411,117 +385,117 @@ CLASS lcl_view IMPLEMENTATION.
 
         " Col 2: Plant
         lo_column ?= lo_columns->get_column( 'WERKS' ).
-        lo_column->set_long_text( TEXT-c02 ).
-        lo_column->set_medium_text( TEXT-c02 ).
-        lo_column->set_short_text( TEXT-c02 ).
+        lo_column->set_long_text( CONV scrtext_l( TEXT-c02 ) ).
+        lo_column->set_medium_text( CONV scrtext_m( TEXT-c02 ) ).
+        lo_column->set_short_text( CONV scrtext_s( TEXT-c02 ) ).
 
         " Col 3: Plant Name
         lo_column ?= lo_columns->get_column( 'NAME1' ).
-        lo_column->set_long_text( TEXT-c03 ).
-        lo_column->set_medium_text( TEXT-c03 ).
-        lo_column->set_short_text( TEXT-c03 ).
+        lo_column->set_long_text( CONV scrtext_l( TEXT-c03 ) ).
+        lo_column->set_medium_text( CONV scrtext_m( TEXT-c03 ) ).
+        lo_column->set_short_text( CONV scrtext_s( TEXT-c03 ) ).
 
         " Col 4: Batch
         lo_column ?= lo_columns->get_column( 'CHARG' ).
-        lo_column->set_long_text( TEXT-c04 ).
-        lo_column->set_medium_text( TEXT-c04 ).
-        lo_column->set_short_text( TEXT-c04 ).
+        lo_column->set_long_text( CONV scrtext_l( TEXT-c04 ) ).
+        lo_column->set_medium_text( CONV scrtext_m( TEXT-c04 ) ).
+        lo_column->set_short_text( CONV scrtext_s( TEXT-c04 ) ).
 
         " Col 5: Created On
         lo_column ?= lo_columns->get_column( 'ERSDA' ).
-        lo_column->set_long_text( TEXT-c05 ).
-        lo_column->set_medium_text( TEXT-c05 ).
-        lo_column->set_short_text( TEXT-c05 ).
+        lo_column->set_long_text( CONV scrtext_l( TEXT-c05 ) ).
+        lo_column->set_medium_text( CONV scrtext_m( TEXT-c05 ) ).
+        lo_column->set_short_text( CONV scrtext_s( TEXT-c05 ) ).
 
         " Col 6: Created By
         lo_column ?= lo_columns->get_column( 'ERNAM' ).
-        lo_column->set_long_text( TEXT-c06 ).
-        lo_column->set_medium_text( TEXT-c06 ).
-        lo_column->set_short_text( TEXT-c06 ).
+        lo_column->set_long_text( CONV scrtext_l( TEXT-c06 ) ).
+        lo_column->set_medium_text( CONV scrtext_m( TEXT-c06 ) ).
+        lo_column->set_short_text( CONV scrtext_s( TEXT-c06 ) ).
 
         " Col 7: Changed On
         lo_column ?= lo_columns->get_column( 'LAEDA' ).
-        lo_column->set_long_text( TEXT-c07 ).
-        lo_column->set_medium_text( TEXT-c07 ).
-        lo_column->set_short_text( TEXT-c07 ).
+        lo_column->set_long_text( CONV scrtext_l( TEXT-c07 ) ).
+        lo_column->set_medium_text( CONV scrtext_m( TEXT-c07 ) ).
+        lo_column->set_short_text( CONV scrtext_s( TEXT-c07 ) ).
 
         " Col 8: Changed By
         lo_column ?= lo_columns->get_column( 'AENAM' ).
-        lo_column->set_long_text( TEXT-c08 ).
-        lo_column->set_medium_text( TEXT-c08 ).
-        lo_column->set_short_text( TEXT-c08 ).
+        lo_column->set_long_text( CONV scrtext_l( TEXT-c08 ) ).
+        lo_column->set_medium_text( CONV scrtext_m( TEXT-c08 ) ).
+        lo_column->set_short_text( CONV scrtext_s( TEXT-c08 ) ).
 
         " Col 9: Material Type
         lo_column ?= lo_columns->get_column( 'MTART' ).
-        lo_column->set_long_text( TEXT-c09 ).
-        lo_column->set_medium_text( TEXT-c09 ).
-        lo_column->set_short_text( TEXT-c09 ).
+        lo_column->set_long_text( CONV scrtext_l( TEXT-c09 ) ).
+        lo_column->set_medium_text( CONV scrtext_m( TEXT-c09 ) ).
+        lo_column->set_short_text( CONV scrtext_s( TEXT-c09 ) ).
 
         " Col 10: Valuation Type
         lo_column ?= lo_columns->get_column( 'BWTAR' ).
-        lo_column->set_long_text( TEXT-c10 ).
-        lo_column->set_medium_text( TEXT-c10 ).
-        lo_column->set_short_text( TEXT-c10 ).
+        lo_column->set_long_text( CONV scrtext_l( TEXT-c10 ) ).
+        lo_column->set_medium_text( CONV scrtext_m( TEXT-c10 ) ).
+        lo_column->set_short_text( CONV scrtext_s( TEXT-c10 ) ).
 
         " Col 11: Material Group
         lo_column ?= lo_columns->get_column( 'MATKL' ).
-        lo_column->set_long_text( TEXT-c11 ).
-        lo_column->set_medium_text( TEXT-c11 ).
-        lo_column->set_short_text( TEXT-c11 ).
+        lo_column->set_long_text( CONV scrtext_l( TEXT-c11 ) ).
+        lo_column->set_medium_text( CONV scrtext_m( TEXT-c11 ) ).
+        lo_column->set_short_text( CONV scrtext_s( TEXT-c11 ) ).
 
         " Col 12: Industry Sector
         lo_column ?= lo_columns->get_column( 'MBRSH' ).
-        lo_column->set_long_text( TEXT-c12 ).
-        lo_column->set_medium_text( TEXT-c12 ).
-        lo_column->set_short_text( TEXT-c12 ).
+        lo_column->set_long_text( CONV scrtext_l( TEXT-c12 ) ).
+        lo_column->set_medium_text( CONV scrtext_m( TEXT-c12 ) ).
+        lo_column->set_short_text( CONV scrtext_s( TEXT-c12 ) ).
 
         " Col 13: Gross Weight
         lo_column ?= lo_columns->get_column( 'BRGEW' ).
-        lo_column->set_long_text( TEXT-c13 ).
-        lo_column->set_medium_text( TEXT-c13 ).
-        lo_column->set_short_text( TEXT-c13 ).
+        lo_column->set_long_text( CONV scrtext_l( TEXT-c13 ) ).
+        lo_column->set_medium_text( CONV scrtext_m( TEXT-c13 ) ).
+        lo_column->set_short_text( CONV scrtext_s( TEXT-c13 ) ).
 
         " Col 14: Net Weight
         lo_column ?= lo_columns->get_column( 'NTGEW' ).
-        lo_column->set_long_text( TEXT-c14 ).
-        lo_column->set_medium_text( TEXT-c14 ).
-        lo_column->set_short_text( TEXT-c14 ).
+        lo_column->set_long_text( CONV scrtext_l( TEXT-c14 ) ).
+        lo_column->set_medium_text( CONV scrtext_m( TEXT-c14 ) ).
+        lo_column->set_short_text( CONV scrtext_s( TEXT-c14 ) ).
 
         " Col 15: Weight Unit
         lo_column ?= lo_columns->get_column( 'GEWEI' ).
-        lo_column->set_long_text( TEXT-c15 ).
-        lo_column->set_medium_text( TEXT-c15 ).
-        lo_column->set_short_text( TEXT-c15 ).
+        lo_column->set_long_text( CONV scrtext_l( TEXT-c15 ) ).
+        lo_column->set_medium_text( CONV scrtext_m( TEXT-c15 ) ).
+        lo_column->set_short_text( CONV scrtext_s( TEXT-c15 ) ).
 
         " Col 16: Volume
         lo_column ?= lo_columns->get_column( 'VOLUM' ).
-        lo_column->set_long_text( TEXT-c16 ).
-        lo_column->set_medium_text( TEXT-c16 ).
-        lo_column->set_short_text( TEXT-c16 ).
+        lo_column->set_long_text( CONV scrtext_l( TEXT-c16 ) ).
+        lo_column->set_medium_text( CONV scrtext_m( TEXT-c16 ) ).
+        lo_column->set_short_text( CONV scrtext_s( TEXT-c16 ) ).
 
         " Col 17: Volume Unit
         lo_column ?= lo_columns->get_column( 'VOLEH' ).
-        lo_column->set_long_text( TEXT-c17 ).
-        lo_column->set_medium_text( TEXT-c17 ).
-        lo_column->set_short_text( TEXT-c17 ).
+        lo_column->set_long_text( CONV scrtext_l( TEXT-c17 ) ).
+        lo_column->set_medium_text( CONV scrtext_m( TEXT-c17 ) ).
+        lo_column->set_short_text( CONV scrtext_s( TEXT-c17 ) ).
 
         " Col 18: Vendor
         lo_column ?= lo_columns->get_column( 'LIFNR' ).
-        lo_column->set_long_text( TEXT-c18 ).
-        lo_column->set_medium_text( TEXT-c18 ).
-        lo_column->set_short_text( TEXT-c18 ).
+        lo_column->set_long_text( CONV scrtext_l( TEXT-c18 ) ).
+        lo_column->set_medium_text( CONV scrtext_m( TEXT-c18 ) ).
+        lo_column->set_short_text( CONV scrtext_s( TEXT-c18 ) ).
 
         " Col 19: Last Goods Receipt
         lo_column ?= lo_columns->get_column( 'LWEDT' ).
-        lo_column->set_long_text( TEXT-c19 ).
-        lo_column->set_medium_text( TEXT-c19 ).
-        lo_column->set_short_text( TEXT-c19 ).
+        lo_column->set_long_text( CONV scrtext_l( TEXT-c19 ) ).
+        lo_column->set_medium_text( CONV scrtext_m( TEXT-c19 ) ).
+        lo_column->set_short_text( CONV scrtext_s( TEXT-c19 ) ).
 
         " Col 20: Country of Origin
         lo_column ?= lo_columns->get_column( 'HERKL' ).
-        lo_column->set_long_text( TEXT-c20 ).
-        lo_column->set_medium_text( TEXT-c20 ).
-        lo_column->set_short_text( TEXT-c20 ).
+        lo_column->set_long_text( CONV scrtext_l( TEXT-c20 ) ).
+        lo_column->set_medium_text( CONV scrtext_m( TEXT-c20 ) ).
+        lo_column->set_short_text( CONV scrtext_s( TEXT-c20 ) ).
 
         " 9h: Sorting
         DATA(lo_sorts) = lo_alv->get_sorts( ).
@@ -534,7 +508,7 @@ CLASS lcl_view IMPLEMENTATION.
         DATA(lo_header) = NEW cl_salv_form_layout_grid( ).
         DATA(lv_date) = |{ sy-datum+4(2) }/{ sy-datum+6(2) }/{ sy-datum(4) }|.
         DATA(lv_time) = |{ sy-uzeit(2) }:{ sy-uzeit+2(2) }:{ sy-uzeit+4(2) }|.
-        lo_header->create_label( row = 1 column = 1 )->set_text( TEXT-h02 ).
+        lo_header->create_label( row = 1 column = 1 )->set_text( CONV scrtext_l( TEXT-h02 ) ).
         lo_header->create_label( row = 2 column = 1 )->set_text( |Executed by: { sy-uname }| ).
         lo_header->create_label( row = 3 column = 1 )->set_text( |Executed on: { lv_date } - { lv_time }| ).
         lo_alv->set_top_of_list( lo_header ).
